@@ -108,3 +108,61 @@ function test()
     end
 end     
 
+
+
+
+
+clear all:
+
+close all;
+
+cic
+
+[Sig. Data) PassiveDDR_read('Mixed/
+
+HOST_DDR DATA_11_Jan_2022_10_15_22_BC_95_Sec_1.gdr.0.2.0): Fs
+
+66e3;
+
+% Hz
+
+NumChannels = 52 ;
+
+Bandwidth 2000; % Hz
+
+% RS_15KHz 25KHz = [15-185.6:16-185;17-185.9:18-187.0:19-188:20
+
+%-185.5:21-184.5:22-182.8:23-181.2:24-180.7:25-181.8];2 RS % receiver sensitivity in dB For channel 1
+
+--184.6:
+
+FE GainIndB = 58.5;
+
+FE Gain = 10 deg (FE_GainindB/20); % voltplot(ReshapedData(:,5));
+
+fl =9e3;
+
+f 2=24e3
+
+NFFT-2048: ReshapedData = reshape(Data', Num Channels, numel (Data)/NumChannels);
+
+Reshaped Data ReshapedData:
+
+m * 1 = [15]
+
+rmsVal zeros(1,52); InputData ReshapedData; xaxis (0:size(Reshaped Data, 2)-1)*1/Fs;
+
+m =m1 3,1,1) plot(InputData(m,:)), title(num2str(m)); legend('Channel Timeseries') ylabel('Channel Amplitude in volt') %axis([0 3.5e4-0.12 0.12))
+
+fftx=abs(fft(InputData(m,:))); I=length(fftx); y = InputData(m,:)';
+
+rmsVal(m) = sqrt((y*y)1/length(y)); subplot(3,1,2) plot((0:1-1)/IFs, 20log10(fftx)), legend('Channel Spectrum') xlabel('Frequency in Hz')
+
+subplot(3,1,3) stem(rmsVal); legend('rmsVal') axis([1 53 0 1.5*max(rmsVal)]) xlabel('Channel Number') %pause(0.5) end
+
+sum(rmsVal);
+
+Avg_rms = sum(rmsVal)/length(rmsVal); %save Trial 29jul22/ArrayData InputData
+
+
+
