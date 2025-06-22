@@ -1,168 +1,241 @@
-function test()
-
+function plotsignal()
     fig = uifigure('Name', 'File Selection UI', 'Position', [100, 100, 900, 500]);
-    btn = uibutton(fig, 'Text', 'Select File', 'Position', [150, 350, 100, 40]);
-    fileLabel = uilabel(fig, 'Text', 'Selected File', 'Position', [50, 300, 300, 40]);
-    filePathField = uitextarea(fig, 'Position', [50, 250, 300, 30], 'Editable', 'off');  % The text area for the file name
-    submitBtn = uibutton(fig, 'Text', 'Submit', 'Position', [400, 20, 100, 40]);
-    scrollpanel = uipanel(fig, 'Title', 'Select Signal Nos:', 'position',[530,150,300,220],'Scrollable','on');
-    ax = uiaxes(fig,'Position', [50, 50, 400, 200],'Title', 'Noise Levels','XLabel', 'Frequency (kHz)','YLabel', 'Noise (dB)');
+    btn = uibutton(fig, 'Text', 'Select gdr File', 'Position', [50, 650, 100, 40]);
+    fileLabel = uilabel(fig, 'Text', 'Selected File', 'Position', [50, 600, 200, 40]);
+    btnLabel = uilabel(fig, 'Text', 'Choose gdr file', 'Position', [50, 200, 300, 40]);
+    ax = uiaxes(fig, 'Position', [50, 220, 200, 300]);
+    filePathField = uieditfield(fig, 'Text', 'Position', [130, 580, 100, 15], 'Editable', 'off'); % The text area for the file name
+    submitBttn = uibutton(fig, 'Text', 'Submit', 'Position', [400, 50, 100, 40]);
+    cb1= uicheckbox(fig, 'Text', 'Noise across channel','Position',[380, 480, 200, 40]);
+    cb2= uicheckbox(fig, 'Text', 'Beam Noise channel','Position',[380, 450, 200, 40]);
+    cb3= uicheckbox(fig, 'Text', 'MF','Position',[380, 420, 200, 40]);
+    cb4= uicheckbox(fig, 'Text', 'All Signals ','Position',[380, 390, 200, 40]);
+    cb5= uicheckbox(fig, 'Text', 'RMS across channel ','Position',[380, 360, 200, 40]);
+    cb6= uicheckbox(fig, 'Text', 'Input shaped data ','Position',[380, 330, 200, 40]);
+    uibutton(fig, 'Text', 'Select all','Position',[550, 580, 100, 40],'ButtonPushedFcn',@(src,event)togglecheckbox(true));
+    uibutton(fig, 'Text', 'De-selectall','Position',[700, 580, 100, 40],'ButtonPushedFcn',@(src,event)togglecheckbox(false));
 
-    checkbox = gobjects(52,1);
-    spacing=18;
-
+    ps=false;
+    scrollpanel = uipanel(fig,'Title','Select Signal Nos.','Position',[530,70,300,500],'Scrollable','on');
+    checkbox= gobjects(52,1);
+    spacing=200;
     for i=1:52
-        checkbox(i)=uicheckbox(scrollpanel,'Text',sprintf('%d',i),'position',[10,950 - i * spacing,200,20]);
+        checkbox(i)=uicheckbox(scrollpanel,'Text',sprintf('%d',i),'Position',[10,950 - i * spacing,200,20]);
     end
 
-    selectall=uibutton(fig,'Text','Selectall','position',[580,90,100,30],'ButtonPushedFcn',@(src,event)togglecheckbox(true));
-    deselectall=uibutton(fig,'Text','De-selectall','position',[720,90,100,30],'ButtonPushedFcn',@(src,event)togglecheckbox(false));
+    persistent selectedFilePath
 
     function togglecheckbox(state)
         for i=1:52
             checkbox(i).Value=state;
         end
     end
-
-    persistent selectedFilePath
     btn.ButtonPushedFcn = @(btn, event) selectFileCallback();
-    submitBtn.ButtonPushedFcn = @(btn, event) submitCallback();
-
+    submitBttn.ButtonPushedFcn = @(btn, event) submitCallback();
     function selectFileCallback()
-        [file, path] = uigetfile('*.gdr', 'Select a MATLAB file');  % Only allow .m files
-        if file ~= 0
+        [file, path] = uigetfile('*.gdr', 'Select a gdr file'); % Only allow .m files
+        if file~=0
             fileName = file;
             selectedFilePath = fullfile(path,fileName);
-            filePathField.Value = fileName;
-        else
+            filePathField.Value = selectedFilePath;%fileName; 
+        else        
             filePathField.Value = 'No file selected';
             selectedFilePath = '';
         end
     end
 
-        
     function submitCallback()
-        fileName = filePathField.Value;  
+        fileName = filePathField.Value; % Get the file name from the text field
         if isempty(fileName) || strcmp(fileName, 'No file selected')
             uialert(fig, 'Please select a file before submitting.', 'Error', 'Icon', 'error');
             return;
         end
-
-        if isempty(selectedFilePath) || ~isfile(selectedFilePath)
+        if isempty(selectedFilePath) || exist(selectedFilePath,'file')~=2
             uialert(fig, 'File not found', 'Error', 'Icon', 'error');
             return;
         end
-
-        selectedIndex = find(arrayfun(@(c) c.Value, checkbox));
-
+        selectedIndex=[];
+        for i=1:52
+            if checkbox(i).Value
+                selectedIndex(end +1)=i;
+            end
+        end
+        selectedIndex = find(arrayfun(@(c)c.Value,checkbox));
         if isempty(selectedIndex)
-            uialert(fig, 'Please select at least one signal.', 'Warning', 'Icon', 'warning');
+            uialert(fig, 'Please select at least one signal ', 'Warning', 'Icon', 'warning');
             return;
         end
 
-        
-        [Sig,Data] = PassiveDDR_read(selectedFilePath, 0.2, 0);
-        Fs = 66e3;
+        [Sig,Data]=PassiveDDR_read( selectedFilePath,0.2,0);
+        %% Parameters
+        Fs = 66e3; % Hz
         NumChannels = 52;
-        Bandwidth = 2000;  
-        RS = -184.6;  
+        Bandwidth = 2000; % Hz
+        % RS 15KHz 25KHz = [15 -185.6:16 -185.17 -185.9 18 -187.0 19 -188.20 -185.5 21 -184.5 22 -182.8 23 -181.2 24 -180.7 25 -181.8];
+        RS = -184.6; % receiver sensitivity in dB for channel 1
         FE_GainIndB = 58.5;
-        FE_Gain = 10^(FE_GainIndB/20);   
+        FE_Gain = 10^(FE_GainIndB/20); % volt/plot(ReshapedData(.5));
+        
         f1=9e3;
         f2=24e3;
-        NFFT=2048
-    
+        NFFT=2048;
         ReshapedData = reshape(Data',NumChannels,numel(Data)/NumChannels);
         ReshapedData=ReshapedData';
-        %plot(ReshapedData(:,1));
+
+        m1=selectedIndex;
+        rmsVal =zeros(1,52);
+        InputData = ReshapedData;
         NLO =[];
 
-        m1=[selectedIndex]
-        disp(m1)
-
-        for m=m1
-            [Pxx,f]=pwelch(ReshapedData(:,m),ones(NFFT,1),NFFT/2,NFFT,Fs);
-            NLO(:,m) = 10*log10(Pxx) - FE_GainIndB -RS;
+        for m =m1
+            [Pxx,F]=pwelch(ReshapedData(:,m),ones(NFFT,1),NFFT/2,NFFT,Fs);
+            NLO(:,m)= 10*log10(Pxx) - FE_GainIndB -RS;
         end
+        NLw= 10*log10(sum(Pxx))+10*log10(Fs/NFFT)-FE_GainIndB-RS;
+        NLw1 = 10*log10(var(ReshapedData))-FE_GainIndB-RS;
+    
+        %% Beam Noise Level
+        beam0 = mean(ReshapedData,2);
+        [PxxBeam,f1]=pwelch(beam0,ones(NFFT,1),NFFT/2,NFFT,Fs);
+        BNLO = 10*log10(PxxBeam) - FE_GainIndB-RS;
+        BNLW = 10*log10(sum(PxxBeam))+10*log10(Fs/NFFT) -FE_GainIndB-RS;
+
+        %% MF
+        fc = 21e3; B=2000; T=160e-3;f0=fc-B/2; f1=fc+B/2;
+        t=0:1/Fs:T;
+        replica = chirp(t,f0,T,f1);
+
+        fftx=fft(replica,Fs);
+        avgGain =mean(abs(fftx(f0:f1)));
+        matchedFilterCoeff= fliplr(replica)/avgGain;
         
-        beamO = mean(ReshapedData,2);
-        [PxxBeam,f]=pwelch(beamO,ones(NFFT,1),NFFT/2,NFFT,Fs);
-        BNLO = 10*log10(PxxBeam) -FE_GainIndB -RS;
-        cla(ax);  % Clear previous plot
-        hold(ax, 'on');
-        % if length(selectedIndex) >= 1
-        % plot(ax, f/1000, NLO(:, selectedIndex(1)), '-r');
-        % end
-        % Plot all selected channels in red
-        plot(ax, f/1000, NLO(:, selectedIndex), '-r');
+        MF_out = filter(matchedFilterCoeff,1,beam0);
+        MF_0 = MF_out(length(matchedFilterCoeff):end);
 
-        % Plot beam noise in green
-        plot(ax, f/1000, BNLO, '-g');
+        [PxxBeam,f1]=pwelch(MF_0,ones(NFFT,1),NFFT/2,NFFT,Fs);
+        BBNLO = 10*log10(PxxBeam) - FE_GainIndB-RS;
+        BBNLW = 10*log10(sum(PxxBeam))+10*log10(Fs/NFFT) -FE_GainIndB-RS;
 
-        legend(ax, {'Selected channels NLO', 'Beam Noise'}, 'Location', 'northeast');
-        ax.Title.String = 'Noise Level (NLO) and Beam Noise Level';
-        ax.XLabel.String = 'Frequency (kHz)';
-        ax.YLabel.String = 'Noise (dB)';
+        if cb1.Value
+            title(ax,'Noise Level(NLO)');
+            plot(ax,f1/1000,BNLO,'-r');
+            legend(ax,'Noise Level');
+            grid(ax,'on')
+            hold(ax,'off');
+            xlabel(ax,'Frequency(kHz)');
+            ylabel(ax,'Noise (dB)');
+            ps=true;
+        end
+
+        if cb2.Value
+            title(ax,'Beam Noise Level');
+            plot(ax,f1/1000,BNLO,'-b');
+            legend(ax,'Beam Noise Level');
+            grid(ax,'on')
+            hold(ax,'off');
+            xlabel(ax,'Frequency(kHz)');
+            ylabel(ax,'Noise (dB)');
+            ps=true;
+        end
+
+        if cb3.Value
+            title(ax,'MF Noise Level');
+            plot(ax,f1/1000,BBNLO,'-g');
+            legend(ax,'MF Noise Level');
+            grid(ax,'on')
+            hold(ax,'off');
+            xlabel(ax,'Frequency(kHz)');
+            ylabel(ax,'Noise (dB)');
+            ps=true;
+        end
+
+        if cb4.Value
+            title(ax,'Noise Level(NLO) and Beam Noise Level and MF Noise Level');
+            plot(ax,f1/1000,NLO,'-r');
+            hold(ax,'on');
+            plot(ax,f1/1000,BNLO,'-b');
+            plot(ax,f1/1000,BBNLO,'-g');
+            legend(ax,'Noise level(NLO)','Beam Noise Level','MF Noise Level');
+            grid(ax,'on')
+            hold(ax,'off');
+            xlabel(ax,'Frequency(kHz)');
+            ylabel(ax,'Noise (dB)');
+            ps=true;
+        end
+
+        if cb1.Value && cb2.Value
+            title(ax,'Noise Level(NLO) and Beam Noise Level');
+            plot(ax,f1/1000,NLO,'-r');
+            hold(ax,'on');
+            plot(ax,f1/1000,BNLO,'-b');
+            legend(ax,'Noise level(NLO)','Beam Noise Level');
+            grid(ax,'on')
+            hold(ax,'off');
+            xlabel(ax,'Frequency(kHz)');
+            ylabel(ax,'Noise (dB)');
+            ps=true;
+        end
+
+        if cb1.Value && cb3.Value
+            title(ax,'Noise Level(NLO) and MF Noise Level');
+            plot(ax,f1/1000,NLO,'-r');
+            hold(ax,'on');
+            plot(ax,f1/1000,BBNLO,'-g');
+            legend(ax,'Noise level(NLO)','MF Noise Level');
+            grid(ax,'on')
+            hold(ax,'off');
+            xlabel(ax,'Frequency(kHz)');
+            ylabel(ax,'Noise (dB)');
+            ps=true;
+        end
+
+        if cb2.Value && cb3.Value
+            title(ax,'Beam Noise Level and MF Noise Level');
+            plot(ax,f1/1000,BNLO,'-b');
+            hold(ax,'on');
+            plot(ax,f1/1000,BBNLO,'-g');
+            legend(ax,'Beam Noise Level','MF Noise Level');
+            grid(ax,'on')
+            hold(ax,'off');
+            xlabel(ax,'Frequency(kHz)');
+            ylabel(ax,'Noise (dB)');
+            ps=true;
+        end
+
+        if cb5.Value
+        m1 = selectedIndex;
+        for m = m1
+            y = InputData(:, m);  % select the m-th channel (column)
+            rmsVal(m) = sqrt(mean(y.^2));  % simpler RMS formula
+        end
+        stem(ax, rmsVal);
+        legend(ax, 'rmsVal');
+        axis([1 53 0 1.5 * max(rmsVal)]);
+        xlabel(ax, 'Channel Number');
+        ylabel(ax, 'RMS Value');
         grid(ax, 'on');
-        hold(ax, 'off');
-    end
-end     
+        ps = true;
+end
 
 
+        if cb6.Value
+            title(ax,'Input shaped data');
+            plot(ax,ReshapedData(:,m1));
+            hold(ax,'on');
+            legend(ax,'Input shaped data');
+            xlabel(ax,'Frequency(kHz)');
+            ylabel(ax,'Noise (dB)');
+            ps=true;
+        end
 
+        if ~ps
+            uialert(fig, 'Please select a checkbox.', 'Error', 'Icon', 'error');
+            return
+        end
 
+     end
+end
 
-clear all:
-
-close all;
-
-cic
-
-[Sig. Data) PassiveDDR_read('Mixed/
-
-HOST_DDR DATA_11_Jan_2022_10_15_22_BC_95_Sec_1.gdr.0.2.0): Fs
-
-66e3;
-
-% Hz
-
-NumChannels = 52 ;
-
-Bandwidth 2000; % Hz
-
-% RS_15KHz 25KHz = [15-185.6:16-185;17-185.9:18-187.0:19-188:20
-
-%-185.5:21-184.5:22-182.8:23-181.2:24-180.7:25-181.8];2 RS % receiver sensitivity in dB For channel 1
-
---184.6:
-
-FE GainIndB = 58.5;
-
-FE Gain = 10 deg (FE_GainindB/20); % voltplot(ReshapedData(:,5));
-
-fl =9e3;
-
-f 2=24e3
-
-NFFT-2048: ReshapedData = reshape(Data', Num Channels, numel (Data)/NumChannels);
-
-Reshaped Data ReshapedData:
-
-m * 1 = [15]
-
-rmsVal zeros(1,52); InputData ReshapedData; xaxis (0:size(Reshaped Data, 2)-1)*1/Fs;
-
-m =m1 3,1,1) plot(InputData(m,:)), title(num2str(m)); legend('Channel Timeseries') ylabel('Channel Amplitude in volt') %axis([0 3.5e4-0.12 0.12))
-
-fftx=abs(fft(InputData(m,:))); I=length(fftx); y = InputData(m,:)';
-
-rmsVal(m) = sqrt((y*y)1/length(y)); subplot(3,1,2) plot((0:1-1)/IFs, 20log10(fftx)), legend('Channel Spectrum') xlabel('Frequency in Hz')
-
-subplot(3,1,3) stem(rmsVal); legend('rmsVal') axis([1 53 0 1.5*max(rmsVal)]) xlabel('Channel Number') %pause(0.5) end
-
-sum(rmsVal);
-
-Avg_rms = sum(rmsVal)/length(rmsVal); %save Trial 29jul22/ArrayData InputData
 
 
 
